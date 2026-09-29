@@ -88,7 +88,7 @@ def load_config(path: str | Path) -> Config:
     storage = raw.get("storage", {})
 
     provider = str(search.get("provider", "travelpayouts")).lower()
-    if provider not in {"travelpayouts", "serpapi", "demo"}:
+    if provider not in {"google", "travelpayouts", "serpapi", "demo"}:
         raise ConfigError(f"Proveedor desconocido: {provider}")
 
     start = int(search.get("days_ahead_start", 7))

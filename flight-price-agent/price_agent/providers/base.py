@@ -24,6 +24,9 @@ class PriceProvider(ABC):
     def fetch(self, route: Route, dates: list[date]) -> list[Quote]:
         """Devuelve la cotización más barata por viaje (fecha de ida + vuelta)."""
 
+    def close(self) -> None:
+        """Libera recursos (por ejemplo, el navegador)."""
+
 
 def trip_key(q: Quote) -> tuple[date, date | None]:
     return (q.departure, q.return_date)

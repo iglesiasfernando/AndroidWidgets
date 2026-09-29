@@ -11,6 +11,10 @@ def build_provider(config: Config) -> PriceProvider:
         from .serpapi import SerpApiProvider
 
         return SerpApiProvider(config)
+    if config.provider == "google":
+        from .googleflights import GoogleFlightsProvider
+
+        return GoogleFlightsProvider(config)
     if config.provider == "demo":
         from .demo import DemoProvider
 
