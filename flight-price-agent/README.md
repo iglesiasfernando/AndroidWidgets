@@ -19,7 +19,10 @@ salida el 2, 3 o 4 de enero de 2027 y vuelta entre 12 y 14 noches después, desd
 Buenos Aires (Ezeiza y Aeroparque) hacia 15 aeropuertos de playa (Florianópolis, Camboriú,
 Río, Búzios, Salvador, Maceió, Recife, Natal, Fortaleza, Jericoacoara, etc.).
 
-Usa sólo la librería estándar de Python (3.11 o más nueva), sin dependencias.
+Por defecto lee los precios de **Google Flights con Chromium** (Playwright), así que
+**no necesita ninguna API key** e incluye todas las aerolíneas (Aerolíneas Argentinas,
+JetSMART, GOL, LATAM, Azul…). Python 3.11 o más nueva; la única dependencia es
+Playwright.
 
 ## Uso rápido
 
@@ -27,11 +30,13 @@ Usa sólo la librería estándar de Python (3.11 o más nueva), sin dependencias
 cd flight-price-agent
 cp config.example.toml config.toml   # editá aeropuertos, fechas y umbrales
 
-# Probar sin API ni mail (precios ficticios, guarda report.html)
-python -m price_agent --provider demo --dry-run
+pip install -r requirements.txt && python -m playwright install chromium
+
+# Probar sin enviar nada (guarda report.html y muestra el resumen)
+python -m price_agent --dry-run
+python -m price_agent --provider demo --dry-run   # precios ficticios, sin internet
 
 # Corrida real con envío de mail y/o WhatsApp
-export TRAVELPAYOUTS_TOKEN=...        # o SERPAPI_KEY si usás serpapi
 export SMTP_HOST=smtp.gmail.com SMTP_PORT=587
 export SMTP_USER=tu_cuenta@gmail.com SMTP_PASSWORD=tu_app_password
 export MAIL_TO=tu_cuenta@gmail.com    # varios destinatarios separados por coma
@@ -43,7 +48,7 @@ python -m price_agent
 
 | Sección | Clave | Descripción |
 |---|---|---|
-| `search` | `provider` | `travelpayouts`, `serpapi` o `demo` |
+| `search` | `provider` | `google` (default, sin API key), `travelpayouts`, `serpapi` o `demo` |
 | | `currency` | Moneda (`USD`, `ARS`, `EUR`…) |
 | | `days_ahead_start` / `days_ahead_end` | Ventana de fechas de salida, en días desde hoy |
 | | `departure_dates` | Fechas de salida puntuales (`["2027-01-02", ...]`); reemplazan a la ventana |
@@ -58,14 +63,20 @@ python -m price_agent
 
 | Proveedor | Costo | Datos | Requests por corrida |
 |---|---|---|---|
+| **Google Flights** (Chromium) | Gratis, sin key | Tiempo real, todas las aerolíneas | 1 carga de página por ruta, fecha y estadía (15 × 3 × 3 = 135, ~15-20 min) |
 | **Travelpayouts** (Aviasales) | Gratis, [token acá](https://www.travelpayouts.com/) | Cacheados (búsquedas de las últimas 48 h); puede haber días sin precio | 1 por ruta y mes |
 | **SerpApi** (Google Flights) | Plan gratis limitado, después pago, [key acá](https://serpapi.com/) | Tiempo real | 1 por ruta, fecha y estadía (30 rutas × 3 fechas × 3 estadías = 270) |
 | **Demo** | – | Ficticios | 0 |
 
-Con SerpApi conviene acotar orígenes, destinos o fechas para no agotar la cuota.
-Travelpayouts es ideal para una búsqueda amplia como la actual, pero como sus precios
-salen de búsquedas recientes de otros usuarios, algunas rutas poco buscadas pueden
-aparecer "sin precio".
+Con Google Flights, `BUE` como origen busca Ezeiza y Aeroparque juntos, y el reporte
+indica de cuál sale cada vuelo. Si una búsqueda no devuelve resultados, se guarda una
+captura en el artefacto `google-flights-debug` de la corrida. La página de Google puede
+cambiar; si deja de encontrar precios, hay que ajustar el parser
+(`price_agent/providers/googleflights.py`).
+
+¿Por qué no directo en las páginas de Aerolíneas Argentinas o JetSMART? No tienen API
+pública, sus sitios bloquean navegadores automáticos y cada una muestra sólo sus
+propios vuelos. Google Flights ya incluye a las dos (y a GOL, LATAM y Azul).
 
 ## Ejecución diaria automática (GitHub Actions)
 
@@ -74,7 +85,7 @@ El workflow `.github/workflows/flight-price-agent.yml` corre todos los días a l
 de Actions. Cada corrida se compara con la anterior.
 
 1. Cargá estos *secrets* en **Settings → Secrets and variables → Actions**:
-   - `TRAVELPAYOUTS_TOKEN` (o `SERPAPI_KEY`)
+   - Precios: nada con el proveedor `google` (o `TRAVELPAYOUTS_TOKEN` / `SERPAPI_KEY` si usás esos)
    - Mail: `SMTP_HOST`, `SMTP_PORT`, `SMTP_USER`, `SMTP_PASSWORD`, `MAIL_TO` y opcionalmente `MAIL_FROM`
    - WhatsApp (opcional, ver abajo): `WHATSAPP_PHONE` y `CALLMEBOT_APIKEY`
 2. Creá y commiteá `flight-price-agent/config.toml` con tus aeropuertos. Si no existe,

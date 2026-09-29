@@ -55,7 +55,7 @@ class ConfigTests(unittest.TestCase):
         self.assertEqual(cfg.departure_dates(TODAY), [date(2027, 1, d) for d in (2, 3, 4)])
         self.assertEqual(cfg.departure_dates(date(2027, 1, 3)), [date(2027, 1, 3), date(2027, 1, 4)])
         self.assertEqual(cfg.stay_range, [12, 13, 14])
-        self.assertIn(Route("EZE", "FLN"), cfg.routes)
+        self.assertIn(Route("BUE", "FLN"), cfg.routes)
 
     def test_invalid_iata(self):
         p = Path(self._tmp()) / "c.toml"

@@ -69,6 +69,7 @@ def main(argv: list[str] | None = None) -> int:
         reports = run_checks(config, provider, history, today, run_at=now)
     finally:
         history.close()
+        provider.close()
 
     subject = build_subject(reports, today)
     text = render_text(reports, today, config)

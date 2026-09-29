@@ -2,7 +2,8 @@
 # Salida 2, 3 o 4 de enero y vuelta entre 12 y 14 noches después.
 
 [search]
-provider = "travelpayouts"
+# "google": Google Flights con Chromium, sin API key (todas las aerolíneas).
+provider = "google"
 currency = "USD"
 
 # Fechas de salida puntuales (reemplazan a days_ahead_start/end).
@@ -15,11 +16,9 @@ stay_nights_max = 14
 direct_only = false
 
 [airports]
-# Sólo desde Buenos Aires.
-origins = [
-    "EZE",  # Buenos Aires - Ezeiza
-    "AEP",  # Buenos Aires - Aeroparque
-]
+# Sólo desde Buenos Aires: BUE = Ezeiza + Aeroparque en una misma búsqueda.
+# En el reporte se indica de cuál de los dos sale cada vuelo.
+origins = ["BUE"]
 # Aeropuertos cerca de la playa en Brasil.
 destinations = [
     "FLN",  # Florianópolis

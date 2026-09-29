@@ -31,6 +31,11 @@ def run_checks(
         result = RouteResult(route=route, alert_price=config.alert_for(route))
         try:
             result.quotes = provider.fetch(route, dates)
+            c = result.cheapest
+            log.info(
+                "  %s: %d viajes con precio%s", route.key, len(result.quotes),
+                f", mínimo {c.currency} {c.price:.0f}" if c else "",
+            )
         except ProviderError as e:
             log.warning("Error en %s: %s", route.key, e)
             result.error = str(e)

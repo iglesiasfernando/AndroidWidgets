@@ -20,6 +20,7 @@ concurrency:
 jobs:
   check-prices:
     runs-on: ubuntu-latest
+    timeout-minutes: 60
     defaults:
       run:
         working-directory: flight-price-agent
@@ -29,6 +30,14 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: "3.12"
+          cache: pip
+          cache-dependency-path: flight-price-agent/requirements.txt
+
+      # Chromium para leer Google Flights (proveedor "google", sin API key).
+      - name: Install Playwright + Chromium
+        run: |
+          pip install -r requirements.txt
+          python -m playwright install --with-deps chromium
 
       # Histórico de precios persistido entre corridas (para "vs. ayer").
       - name: Restore price history
@@ -41,6 +50,7 @@ jobs:
       - name: Run agent
         env:
           TZ: America/Argentina/Buenos_Aires
+          GF_DEBUG_DIR: debug
           TRAVELPAYOUTS_TOKEN: ${{ secrets.TRAVELPAYOUTS_TOKEN }}
           SERPAPI_KEY: ${{ secrets.SERPAPI_KEY }}
           SMTP_HOST: ${{ secrets.SMTP_HOST }}
@@ -77,6 +87,16 @@ jobs:
           path: flight-price-agent/report.html
           if-no-files-found: ignore
 
+      # Capturas de pantalla de las búsquedas que no devolvieron resultados.
+      - name: Upload debug screenshots
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: google-flights-debug
+          path: flight-price-agent/debug
+          if-no-files-found: ignore
+          retention-days: 7
+
   test:
     runs-on: ubuntu-latest
     if: github.event_name == 'workflow_dispatch'
@@ -88,4 +108,5 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: "3.12"
+      - run: pip install -r requirements.txt && python -m playwright install --with-deps chromium
       - run: python -m unittest discover -s tests -t . -v
