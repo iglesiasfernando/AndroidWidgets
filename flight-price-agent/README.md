@@ -1,6 +1,6 @@
 # Agente de precios de vuelos ✈️
 
-Revisa **dos veces por día** (00:00 y 10:00, hora de Argentina) los precios de vuelos entre un conjunto de aeropuertos
+Revisa **tres veces por día** (10:00, 18:00 y 00:00, hora de Argentina) los precios de vuelos entre un conjunto de aeropuertos
 definidos, busca el precio más barato para **cada fecha de salida** (una ventana de
 días o fechas puntuales, sólo ida o ida y vuelta con un rango de noches) y te manda
 un **reporte por mail** y un **resumen por WhatsApp** con:
@@ -70,7 +70,7 @@ aparecer "sin precio".
 ## Ejecución diaria automática (GitHub Actions)
 
 El workflow `.github/workflows/flight-price-agent.yml` corre todos los días a las
-**00:00 y 10:00** (hora de Argentina) y guarda el histórico entre corridas con el cache
+**10:00, 18:00 y 00:00** (hora de Argentina) y guarda el histórico entre corridas con el cache
 de Actions. Cada corrida se compara con la anterior.
 
 1. Cargá estos *secrets* en **Settings → Secrets and variables → Actions**:

@@ -2,10 +2,11 @@ name: Flight price agent
 
 on:
   schedule:
-    # Hora de Argentina (UTC-3): 00:00 y 10:00. Los cron de GitHub van en UTC
-    # y pueden demorarse algunos minutos en horarios de mucha carga.
-    - cron: "0 3 * * *"   # 00:00 ART
+    # Hora de Argentina (UTC-3): 10:00, 18:00 y 00:00. Los cron de GitHub van en
+    # UTC y pueden demorarse algunos minutos en horarios de mucha carga.
     - cron: "0 13 * * *"  # 10:00 ART
+    - cron: "0 21 * * *"  # 18:00 ART
+    - cron: "0 3 * * *"   # 00:00 ART
   workflow_dispatch:
     inputs:
       dry_run:
