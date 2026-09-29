@@ -1,0 +1,52 @@
+# Configuración del agente de monitoreo de precios de vuelos.
+# Copiá este archivo como config.toml y editalo.
+
+[search]
+# Proveedor de precios: "travelpayouts" (gratis, precios cacheados),
+# "serpapi" (Google Flights en tiempo real, 1 request por fecha y ruta)
+# o "demo" (precios ficticios para probar el reporte y el mail).
+provider = "travelpayouts"
+currency = "USD"
+
+# Ventana de fechas de salida a revisar, en días desde hoy.
+# Se revisa el precio más barato de CADA día dentro de la ventana.
+days_ahead_start = 7
+days_ahead_end = 60
+
+# O bien, fechas de salida puntuales (reemplazan a la ventana de arriba):
+# departure_dates = ["2027-01-02", "2027-01-03", "2027-01-04"]
+
+# Ida y vuelta: rango de noches de estadía (se prueban todas las combinaciones).
+# Comentalos para buscar sólo ida. Para una estadía fija usá stay_nights = 7.
+# stay_nights_min = 12
+# stay_nights_max = 14
+
+# true = sólo vuelos directos
+direct_only = false
+
+# Aeropuertos de origen y destino (códigos IATA).
+# Se generan todas las combinaciones origen -> destino.
+[airports]
+origins = ["EZE", "AEP"]
+destinations = ["MIA", "MAD", "GRU"]
+
+# Umbral de precio opcional por destino (o "ORIGEN-DESTINO").
+# Las fechas por debajo del umbral se resaltan en el reporte.
+[alerts]
+MIA = 450
+MAD = 800
+"EZE-GRU" = 250
+
+[report]
+# Cuántas fechas más baratas mostrar por ruta en el resumen.
+top_n = 5
+# Tamaño del ranking general de viajes más baratos (todas las rutas).
+top_overall = 10
+# Cantidad de rutas (las más baratas) con detalle y calendario.
+max_routes_detail = 10
+# Variación porcentual vs. el día anterior a partir de la cual se destaca.
+change_threshold_pct = 5
+
+[storage]
+# Base SQLite con el histórico de precios (para comparar día a día).
+history_db = "data/prices.sqlite"
