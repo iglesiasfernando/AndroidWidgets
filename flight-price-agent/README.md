@@ -63,7 +63,7 @@ python -m price_agent
 
 | Proveedor | Costo | Datos | Requests por corrida |
 |---|---|---|---|
-| **Google Flights** (Chromium) | Gratis, sin key | Tiempo real, todas las aerolíneas | 1 carga de página por ruta, fecha y estadía (15 × 3 × 3 = 135, ~10 min) |
+| **Google Flights** (Chromium) | Gratis, sin key | Tiempo real, todas las aerolíneas | 1 carga de página por ruta, fecha y estadía (15 × 3 × 3 = 135, ~15-20 min) |
 | **Travelpayouts** (Aviasales) | Gratis, [token acá](https://www.travelpayouts.com/) | Cacheados (búsquedas de las últimas 48 h); puede haber días sin precio | 1 por ruta y mes |
 | **SerpApi** (Google Flights) | Plan gratis limitado, después pago, [key acá](https://serpapi.com/) | Tiempo real | 1 por ruta, fecha y estadía (30 rutas × 3 fechas × 3 estadías = 270) |
 | **Demo** | – | Ficticios | 0 |

@@ -107,6 +107,7 @@ class GoogleFlightsProvider(PriceProvider):
         self._page = None
         self.debug_dir = os.environ.get("GF_DEBUG_DIR")
         self.delay_ms = int(os.environ.get("GF_DELAY_MS", "1500"))
+        self.probe_trips = int(os.environ.get("GF_PROBE_TRIPS", "3"))
 
     # -- ciclo de vida del navegador -----------------------------------------
 
@@ -138,16 +139,24 @@ class GoogleFlightsProvider(PriceProvider):
     def fetch(self, route: Route, dates: list[date]) -> list[Quote]:
         quotes: list[Quote] = []
         errors: list[str] = []
-        for d in dates:
-            for nights in self.config.stay_range or [None]:
-                ret = d + timedelta(days=nights) if nights else None
-                try:
-                    quotes.extend(self._search(route, d, ret))
-                except ProviderError as e:
-                    errors.append(f"{d}: {e}")
-                    log.warning("%s %s→%s: %s", route.key, d, ret, e)
+        trips = [
+            (d, d + timedelta(days=n) if n else None)
+            for d in dates
+            for n in (self.config.stay_range or [None])
+        ]
+        for i, (d, ret) in enumerate(trips):
+            # Ruta sin vuelos en Google: no esperar el timeout en cada combinación.
+            if i == self.probe_trips and not quotes:
+                log.info("%s: sin resultados en las primeras %d búsquedas, se saltea",
+                         route.key, i)
+                break
+            try:
+                quotes.extend(self._search(route, d, ret))
+            except ProviderError as e:
+                errors.append(f"{d}→{ret}: {e}")
+                log.warning("%s %s→%s: %s", route.key, d, ret, e)
         if errors and not quotes:
-            raise ProviderError("; ".join(errors[:2]))
+            raise ProviderError(errors[0])
         return cheapest_per_trip(quotes)
 
     def _search(self, route: Route, dep: date, ret: date | None) -> list[Quote]:

@@ -53,6 +53,38 @@ class ParseTests(unittest.TestCase):
         self.assertEqual(len(cfg.routes), 15)
 
 
+class SkipEmptyRouteTests(unittest.TestCase):
+    def test_stops_after_probe_trips_without_results(self):
+        cfg = load_config(ROOT / "config.toml")
+        p = gf.GoogleFlightsProvider(cfg)
+        calls = []
+
+        def fake_search(route, dep, ret):
+            calls.append((dep, ret))
+            raise gf.ProviderError("no aparecieron resultados")
+
+        p._search = fake_search
+        with self.assertRaises(gf.ProviderError):
+            p.fetch(ROUTE, [date(2027, 1, d) for d in (2, 3, 4)])
+        self.assertEqual(len(calls), 3)  # de 9 combinaciones posibles
+
+    def test_keeps_going_when_some_results(self):
+        cfg = load_config(ROOT / "config.toml")
+        p = gf.GoogleFlightsProvider(cfg)
+        calls = []
+
+        def fake_search(route, dep, ret):
+            calls.append(1)
+            if len(calls) == 2:
+                return gf.parse_labels(LABELS[:1], route, dep, ret, "USD", "u")
+            return []
+
+        p._search = fake_search
+        quotes = p.fetch(ROUTE, [date(2027, 1, d) for d in (2, 3, 4)])
+        self.assertEqual(len(calls), 9)
+        self.assertEqual(len(quotes), 1)
+
+
 CHROMIUM = os.environ.get("CHROMIUM_PATH") or (
     "/opt/pw-browsers/chromium" if os.path.exists("/opt/pw-browsers/chromium") else ""
 )
