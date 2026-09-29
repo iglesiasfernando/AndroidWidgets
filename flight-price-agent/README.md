@@ -1,14 +1,23 @@
 # Agente de precios de vuelos ✈️
 
 Revisa **todos los días** los precios de vuelos entre un conjunto de aeropuertos
-definidos, busca el precio más barato para **cada fecha de salida** dentro de una
-ventana (por ejemplo, de acá a 60 días) y te manda un **reporte por mail** con:
+definidos, busca el precio más barato para **cada fecha de salida** (una ventana de
+días o fechas puntuales, sólo ida o ida y vuelta con un rango de noches) y te manda
+un **reporte por mail** con:
 
-- Un resumen por ruta: precio mínimo, fecha y variación contra el día anterior.
+- El ranking de los viajes más baratos entre todas las rutas.
+- El mejor precio por destino.
+- Un resumen por ruta: precio mínimo, fechas y variación contra el día anterior.
 - Alertas 🔔 cuando hay fechas por debajo del umbral de precio que definas.
 - Una marca de **mínimo histórico** cuando el precio es el más bajo registrado.
 - Las N fechas más baratas de cada ruta, con aerolínea, escalas y link.
-- Un calendario con colores (verde = barato, rojo = caro) con el precio de cada día.
+- Una tabla con colores (verde = barato, rojo = caro): fecha de ida × noches de
+  estadía, o un calendario con el precio de cada día si la ventana es larga.
+
+La configuración actual (`config.toml`) busca **Argentina → playas de Brasil**:
+salida el 2, 3 o 4 de enero de 2027 y vuelta entre 12 y 14 noches después, desde
+EZE, AEP, COR, ROS y MDZ hacia 15 aeropuertos de playa (Florianópolis, Camboriú,
+Río, Búzios, Salvador, Maceió, Recife, Natal, Fortaleza, Jericoacoara, etc.).
 
 Usa sólo la librería estándar de Python (3.11 o más nueva), sin dependencias.
 
@@ -36,11 +45,12 @@ python -m price_agent
 | `search` | `provider` | `travelpayouts`, `serpapi` o `demo` |
 | | `currency` | Moneda (`USD`, `ARS`, `EUR`…) |
 | | `days_ahead_start` / `days_ahead_end` | Ventana de fechas de salida, en días desde hoy |
-| | `stay_nights` | Opcional: busca ida y vuelta con esa cantidad de noches |
+| | `departure_dates` | Fechas de salida puntuales (`["2027-01-02", ...]`); reemplazan a la ventana |
+| | `stay_nights_min` / `stay_nights_max` | Ida y vuelta: rango de noches (o `stay_nights` para un valor fijo) |
 | | `direct_only` | Sólo vuelos directos |
 | `airports` | `origins` / `destinations` | Códigos IATA; se revisan todas las combinaciones |
 | `alerts` | `DEST = precio` o `"ORIG-DEST" = precio` | Umbral para resaltar fechas baratas |
-| `report` | `top_n`, `change_threshold_pct` | Fechas a listar y % de variación a destacar |
+| `report` | `top_n`, `top_overall`, `max_routes_detail`, `change_threshold_pct` | Viajes por ruta, tamaño del ranking general, rutas con detalle y % de variación a destacar |
 | `storage` | `history_db` | Archivo SQLite con el histórico |
 
 ## Proveedores de precios
@@ -48,11 +58,13 @@ python -m price_agent
 | Proveedor | Costo | Datos | Requests por corrida |
 |---|---|---|---|
 | **Travelpayouts** (Aviasales) | Gratis, [token acá](https://www.travelpayouts.com/) | Cacheados (búsquedas de las últimas 48 h); puede haber días sin precio | 1 por ruta y mes |
-| **SerpApi** (Google Flights) | Plan gratis limitado, después pago, [key acá](https://serpapi.com/) | Tiempo real | 1 por ruta y **día** (6 rutas × 54 días = 324) |
+| **SerpApi** (Google Flights) | Plan gratis limitado, después pago, [key acá](https://serpapi.com/) | Tiempo real | 1 por ruta, fecha y estadía (75 rutas × 3 fechas × 3 estadías = 675) |
 | **Demo** | – | Ficticios | 0 |
 
-Con SerpApi conviene acotar la ventana de fechas o la cantidad de rutas para no
-agotar la cuota.
+Con SerpApi conviene acotar orígenes, destinos o fechas para no agotar la cuota.
+Travelpayouts es ideal para una búsqueda amplia como la actual, pero como sus precios
+salen de búsquedas recientes de otros usuarios, algunas rutas poco buscadas pueden
+aparecer "sin precio".
 
 ## Ejecución diaria automática (GitHub Actions)
 

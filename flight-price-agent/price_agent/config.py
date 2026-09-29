@@ -22,12 +22,16 @@ class Config:
     currency: str
     days_ahead_start: int
     days_ahead_end: int
-    stay_nights: Optional[int]
+    stay_nights_min: Optional[int]
+    stay_nights_max: Optional[int]
     direct_only: bool
     origins: list[str]
     destinations: list[str]
     alerts: dict[str, float] = field(default_factory=dict)
+    fixed_dates: list[date] = field(default_factory=list)
     top_n: int = 5
+    top_overall: int = 10
+    max_routes_detail: int = 10
     change_threshold_pct: float = 5.0
     history_db: str = "data/prices.sqlite"
 
@@ -40,7 +44,16 @@ class Config:
             if o != d
         ]
 
+    @property
+    def stay_range(self) -> Optional[list[int]]:
+        """Noches de estadía a buscar (None = sólo ida)."""
+        if self.stay_nights_min is None:
+            return None
+        return list(range(self.stay_nights_min, self.stay_nights_max + 1))
+
     def departure_dates(self, today: date) -> list[date]:
+        if self.fixed_dates:
+            return [d for d in self.fixed_dates if d >= today]
         return [
             today + timedelta(days=n)
             for n in range(self.days_ahead_start, self.days_ahead_end + 1)
@@ -84,6 +97,19 @@ def load_config(path: str | Path) -> Config:
         raise ConfigError("La ventana de días es inválida (0 <= start <= end)")
 
     stay = search.get("stay_nights")
+    stay_min = search.get("stay_nights_min", stay)
+    stay_max = search.get("stay_nights_max", stay_min)
+    if (stay_min is None) != (stay_max is None):
+        raise ConfigError("Definí stay_nights_min y stay_nights_max juntos")
+    if stay_min is not None and not 0 < int(stay_min) <= int(stay_max):
+        raise ConfigError("Rango de noches inválido (0 < min <= max)")
+
+    try:
+        fixed_dates = sorted(
+            {date.fromisoformat(str(d)) for d in search.get("departure_dates", [])}
+        )
+    except ValueError as e:
+        raise ConfigError(f"Fecha inválida en departure_dates: {e}") from e
     alerts = {
         str(k).upper(): float(v) for k, v in raw.get("alerts", {}).items()
     }
@@ -93,7 +119,9 @@ def load_config(path: str | Path) -> Config:
         currency=str(search.get("currency", "USD")).upper(),
         days_ahead_start=start,
         days_ahead_end=end,
-        stay_nights=int(stay) if stay is not None else None,
+        stay_nights_min=int(stay_min) if stay_min is not None else None,
+        stay_nights_max=int(stay_max) if stay_max is not None else None,
+        fixed_dates=fixed_dates,
         direct_only=bool(search.get("direct_only", False)),
         origins=_iata_list(airports.get("origins"), "airports.origins"),
         destinations=_iata_list(
@@ -101,6 +129,8 @@ def load_config(path: str | Path) -> Config:
         ),
         alerts=alerts,
         top_n=int(report.get("top_n", 5)),
+        top_overall=int(report.get("top_overall", 10)),
+        max_routes_detail=int(report.get("max_routes_detail", 10)),
         change_threshold_pct=float(report.get("change_threshold_pct", 5)),
         history_db=str(storage.get("history_db", "data/prices.sqlite")),
     )

@@ -1,0 +1,58 @@
+# Búsqueda: Argentina -> playas de Brasil, enero 2027.
+# Salida 2, 3 o 4 de enero y vuelta entre 12 y 14 noches después.
+
+[search]
+provider = "travelpayouts"
+currency = "USD"
+
+# Fechas de salida puntuales (reemplazan a days_ahead_start/end).
+departure_dates = ["2027-01-02", "2027-01-03", "2027-01-04"]
+
+# Ida y vuelta: estadía de 12 a 14 noches (vuelta entre el 14 y el 18 de enero).
+stay_nights_min = 12
+stay_nights_max = 14
+
+direct_only = false
+
+[airports]
+# Principales aeropuertos de Argentina con vuelos a Brasil.
+origins = [
+    "EZE",  # Buenos Aires - Ezeiza
+    "AEP",  # Buenos Aires - Aeroparque
+    "COR",  # Córdoba
+    "ROS",  # Rosario
+    "MDZ",  # Mendoza
+]
+# Aeropuertos cerca de la playa en Brasil.
+destinations = [
+    "FLN",  # Florianópolis
+    "NVT",  # Navegantes (Balneário Camboriú, Bombinhas)
+    "GIG",  # Río de Janeiro
+    "CFB",  # Cabo Frio (Búzios, Arraial do Cabo)
+    "VIX",  # Vitória
+    "BPS",  # Porto Seguro (Trancoso, Arraial d'Ajuda)
+    "IOS",  # Ilhéus (Itacaré)
+    "SSA",  # Salvador (Praia do Forte, Morro de São Paulo)
+    "AJU",  # Aracaju
+    "MCZ",  # Maceió (Maragogi)
+    "REC",  # Recife (Porto de Galinhas)
+    "JPA",  # João Pessoa
+    "NAT",  # Natal (Pipa)
+    "FOR",  # Fortaleza (Canoa Quebrada)
+    "JJD",  # Jericoacoara
+]
+
+# Umbrales opcionales (precio ida y vuelta) para recibir alertas 🔔.
+# Por destino o por ruta "ORIGEN-DESTINO". Ejemplos:
+[alerts]
+# FLN = 350
+# "EZE-SSA" = 600
+
+[report]
+top_n = 5               # combinaciones más baratas por ruta
+top_overall = 15        # ranking general de viajes más baratos
+max_routes_detail = 10  # rutas con detalle (las más baratas)
+change_threshold_pct = 5
+
+[storage]
+history_db = "data/prices.sqlite"

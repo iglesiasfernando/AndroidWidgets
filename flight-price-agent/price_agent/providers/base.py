@@ -22,15 +22,20 @@ class PriceProvider(ABC):
 
     @abstractmethod
     def fetch(self, route: Route, dates: list[date]) -> list[Quote]:
-        """Devuelve la cotización más barata por fecha de salida (una por día)."""
+        """Devuelve la cotización más barata por viaje (fecha de ida + vuelta)."""
 
 
-def cheapest_per_day(quotes: list[Quote]) -> list[Quote]:
-    best: dict[date, Quote] = {}
+def trip_key(q: Quote) -> tuple[date, date | None]:
+    return (q.departure, q.return_date)
+
+
+def cheapest_per_trip(quotes: list[Quote]) -> list[Quote]:
+    best: dict[tuple, Quote] = {}
     for q in quotes:
-        if q.departure not in best or q.price < best[q.departure].price:
-            best[q.departure] = q
-    return [best[d] for d in sorted(best)]
+        k = trip_key(q)
+        if k not in best or q.price < best[k].price:
+            best[k] = q
+    return sorted(best.values(), key=lambda q: (q.departure, q.return_date or q.departure))
 
 
 def get_json(url: str, params: dict, retries: int = 3, timeout: int = 30) -> dict:

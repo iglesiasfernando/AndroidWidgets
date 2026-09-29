@@ -49,6 +49,10 @@ def main(argv: list[str] | None = None) -> int:
         return 2
 
     today = date.today()
+    if not config.departure_dates(today):
+        log.warning("Todas las fechas de salida ya pasaron: no hay nada para revisar")
+        return 0
+
     history = History(config.history_db)
     try:
         reports = run_checks(config, provider, history, today)
@@ -56,8 +60,8 @@ def main(argv: list[str] | None = None) -> int:
         history.close()
 
     subject = build_subject(reports, today)
-    text = render_text(reports, today, config.top_n)
-    html = render_html(reports, today, config.top_n, config.change_threshold_pct)
+    text = render_text(reports, today, config)
+    html = render_html(reports, today, config)
 
     if args.dry_run:
         Path(args.output).write_text(html, encoding="utf-8")

@@ -8,7 +8,7 @@ from price_agent.config import ConfigError, load_config
 from price_agent.history import History
 from price_agent.mailer import SmtpSettings, build_message
 from price_agent.models import Quote, Route
-from price_agent.providers.base import PriceProvider, ProviderError, cheapest_per_day
+from price_agent.providers.base import PriceProvider, ProviderError, cheapest_per_trip
 from price_agent.providers.demo import DemoProvider
 from price_agent.providers.travelpayouts import TravelpayoutsProvider
 from price_agent.report import build_subject, render_html, render_text
@@ -46,6 +46,13 @@ class ConfigTests(unittest.TestCase):
         self.assertEqual(cfg.alert_for(Route("AEP", "GRU")), None)
         self.assertEqual(cfg.alert_for(Route("AEP", "MIA")), 450)
         self.assertEqual(len(cfg.departure_dates(TODAY)), 54)
+
+    def test_beach_config(self):
+        cfg = load_config(ROOT / "config.toml")
+        self.assertEqual(cfg.departure_dates(TODAY), [date(2027, 1, d) for d in (2, 3, 4)])
+        self.assertEqual(cfg.departure_dates(date(2027, 1, 3)), [date(2027, 1, 3), date(2027, 1, 4)])
+        self.assertEqual(cfg.stay_range, [12, 13, 14])
+        self.assertIn(Route("EZE", "FLN"), cfg.routes)
 
     def test_invalid_iata(self):
         p = Path(self._tmp()) / "c.toml"
@@ -86,22 +93,74 @@ class AgentTests(unittest.TestCase):
 
     def test_render(self):
         cfg = example_config()
-        cfg.stay_nights = 7
+        cfg.stay_nights_min = cfg.stay_nights_max = 7
         reports = run_checks(cfg, DemoProvider(cfg, seed="x"), History(":memory:"), TODAY)
-        html = render_html(reports, TODAY, cfg.top_n, cfg.change_threshold_pct)
-        text = render_text(reports, TODAY, cfg.top_n)
+        html = render_html(reports, TODAY, cfg)
+        text = render_text(reports, TODAY, cfg)
         subject = build_subject(reports, TODAY)
         self.assertIn("EZE ✈ MIA", html)
         self.assertIn("== AEP-GRU ==", text)
         self.assertIn("29/09/2026", subject)
 
 
+class StayRangeTests(unittest.TestCase):
+    def test_compares_same_trip_and_renders_matrix(self):
+        cfg = example_config()
+        cfg.fixed_dates = [date(2027, 1, d) for d in (2, 3, 4)]
+        cfg.stay_nights_min, cfg.stay_nights_max = 12, 14
+        hist = History(":memory:")
+        run_checks(cfg, DemoProvider(cfg, seed="a"), hist, TODAY - timedelta(days=1))
+        reports = run_checks(cfg, DemoProvider(cfg, seed="b"), hist, TODAY)
+        r = reports[0]
+        self.assertEqual(len(r.result.quotes), 9)
+        self.assertEqual(len(r.previous), 9)
+        q = r.result.quotes[0]
+        prev = r.previous[(q.departure, q.return_date)]
+        self.assertAlmostEqual(r.change_pct(q), (q.price - prev) / prev * 100)
+        html = render_html(reports, TODAY, cfg)
+        self.assertIn("Ida \\ Noches", html)
+        self.assertIn("viajes más baratos", html)
+        self.assertIn("(12n)", render_text(reports, TODAY, cfg))
+
+
 class ProviderTests(unittest.TestCase):
-    def test_cheapest_per_day(self):
+    def test_cheapest_per_trip(self):
         r = Route("EZE", "MIA")
         d = date(2026, 10, 1)
-        out = cheapest_per_day([Quote(r, d, 500, "USD"), Quote(r, d, 420, "USD")])
-        self.assertEqual([q.price for q in out], [420])
+        ret = d + timedelta(days=12)
+        out = cheapest_per_trip([
+            Quote(r, d, 500, "USD", return_date=ret),
+            Quote(r, d, 420, "USD", return_date=ret),
+            Quote(r, d, 450, "USD", return_date=ret + timedelta(days=1)),
+        ])
+        self.assertEqual([q.price for q in out], [420, 450])
+
+    def test_travelpayouts_round_trip_stay_range(self):
+        cfg = example_config()
+        cfg.stay_nights_min, cfg.stay_nights_max = 12, 14
+        item = lambda dep, ret, price: {
+            "departure_at": f"{dep}T10:00:00-03:00", "return_at": f"{ret}T10:00:00-03:00",
+            "price": price, "airline": "G3", "transfers": 1,
+        }
+        payload = {"success": True, "data": [
+            item("2027-01-02", "2027-01-14", 700),   # 12 noches
+            item("2027-01-02", "2027-01-14", 650),   # mismo viaje, más barato
+            item("2027-01-03", "2027-01-17", 600),   # 14 noches
+            item("2027-01-03", "2027-01-20", 300),   # 17 noches: fuera de rango
+            item("2027-01-05", "2027-01-18", 200),   # fecha de ida no pedida
+        ]}
+        with mock.patch.dict("os.environ", {"TRAVELPAYOUTS_TOKEN": "t"}), mock.patch(
+            "price_agent.providers.travelpayouts.get_json", return_value=payload
+        ) as gj, mock.patch("price_agent.providers.travelpayouts.time.sleep"):
+            quotes = TravelpayoutsProvider(cfg).fetch(
+                Route("EZE", "FLN"), [date(2027, 1, d) for d in (2, 3, 4)]
+            )
+        self.assertEqual(gj.call_count, 1)
+        params = gj.call_args[0][1]
+        self.assertEqual((params["departure_at"], params["return_at"], params["one_way"]),
+                         ("2027-01", "2027-01", "false"))
+        self.assertEqual([(q.departure.day, q.return_date.day, q.price) for q in quotes],
+                         [(2, 14, 650), (3, 17, 600)])
 
     def test_travelpayouts_parsing(self):
         cfg = example_config()
@@ -117,7 +176,7 @@ class ProviderTests(unittest.TestCase):
         }
         with mock.patch.dict("os.environ", {"TRAVELPAYOUTS_TOKEN": "t"}), mock.patch(
             "price_agent.providers.travelpayouts.get_json", return_value=payload
-        ) as gj:
+        ) as gj, mock.patch("price_agent.providers.travelpayouts.time.sleep"):
             p = TravelpayoutsProvider(cfg)
             quotes = p.fetch(Route("EZE", "MIA"), [date(2026, 10, 1), date(2026, 10, 2)])
         self.assertEqual(gj.call_count, 1)

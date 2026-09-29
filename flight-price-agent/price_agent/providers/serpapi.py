@@ -26,24 +26,22 @@ class SerpApiProvider(PriceProvider):
     def fetch(self, route: Route, dates: list[date]) -> list[Quote]:
         quotes: list[Quote] = []
         errors: list[str] = []
+        stays = self.config.stay_range or [None]
         for d in dates:
-            try:
-                q = self._fetch_day(route, d)
-            except ProviderError as e:
-                errors.append(f"{d}: {e}")
-                continue
-            if q:
-                quotes.append(q)
+            for nights in stays:
+                ret = d + timedelta(days=nights) if nights else None
+                try:
+                    q = self._fetch_trip(route, d, ret)
+                except ProviderError as e:
+                    errors.append(f"{d}: {e}")
+                    continue
+                if q:
+                    quotes.append(q)
         if errors and not quotes:
             raise ProviderError("; ".join(errors[:3]))
         return quotes
 
-    def _fetch_day(self, route: Route, d: date) -> Quote | None:
-        ret = (
-            d + timedelta(days=self.config.stay_nights)
-            if self.config.stay_nights
-            else None
-        )
+    def _fetch_trip(self, route: Route, d: date, ret: date | None) -> Quote | None:
         params = {
             "engine": "google_flights",
             "departure_id": route.origin,

@@ -13,9 +13,13 @@ currency = "USD"
 days_ahead_start = 7
 days_ahead_end = 60
 
-# Si se define, busca ida y vuelta con esta cantidad de noches de estadía.
-# Comentalo para buscar sólo ida.
-# stay_nights = 7
+# O bien, fechas de salida puntuales (reemplazan a la ventana de arriba):
+# departure_dates = ["2027-01-02", "2027-01-03", "2027-01-04"]
+
+# Ida y vuelta: rango de noches de estadía (se prueban todas las combinaciones).
+# Comentalos para buscar sólo ida. Para una estadía fija usá stay_nights = 7.
+# stay_nights_min = 12
+# stay_nights_max = 14
 
 # true = sólo vuelos directos
 direct_only = false
@@ -36,6 +40,10 @@ MAD = 800
 [report]
 # Cuántas fechas más baratas mostrar por ruta en el resumen.
 top_n = 5
+# Tamaño del ranking general de viajes más baratos (todas las rutas).
+top_overall = 10
+# Cantidad de rutas (las más baratas) con detalle y calendario.
+max_routes_detail = 10
 # Variación porcentual vs. el día anterior a partir de la cual se destaca.
 change_threshold_pct = 5
 

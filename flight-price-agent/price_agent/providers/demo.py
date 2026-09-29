@@ -17,18 +17,14 @@ class DemoProvider(PriceProvider):
     def fetch(self, route: Route, dates: list[date]) -> list[Quote]:
         base = 150 + self._rand(route.key) % 700
         quotes = []
-        for d in dates:
-            noise = self._rand(f"{route.key}{d}{self.seed}") % 200 - 60
+        for d, nights in ((d, n) for d in dates for n in (self.config.stay_range or [None])):
+            noise = self._rand(f"{route.key}{d}{nights}{self.seed}") % 200 - 60
             weekend = 40 if d.weekday() in (4, 5, 6) else 0
             quotes.append(
                 Quote(
                     route=route,
                     departure=d,
-                    return_date=(
-                        d + timedelta(days=self.config.stay_nights)
-                        if self.config.stay_nights
-                        else None
-                    ),
+                    return_date=d + timedelta(days=nights) if nights else None,
                     price=float(max(base + noise + weekend, 49)),
                     currency=self.config.currency,
                     airline=["AR", "LA", "AA", "IB", "G3"][self._rand(str(d)) % 5],
