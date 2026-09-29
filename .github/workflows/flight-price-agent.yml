@@ -1,0 +1,81 @@
+name: Flight price agent
+
+on:
+  schedule:
+    # Todos los días a las 11:00 UTC (08:00 hora de Argentina)
+    - cron: "0 11 * * *"
+  workflow_dispatch:
+    inputs:
+      dry_run:
+        description: "No enviar mail (sólo generar el reporte como artefacto)"
+        type: boolean
+        default: false
+
+concurrency:
+  group: flight-price-agent
+
+jobs:
+  check-prices:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: flight-price-agent
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      # Histórico de precios persistido entre corridas (para "vs. ayer").
+      - name: Restore price history
+        uses: actions/cache/restore@v4
+        with:
+          path: flight-price-agent/data
+          key: price-history-${{ github.run_id }}
+          restore-keys: price-history-
+
+      - name: Run agent
+        env:
+          TRAVELPAYOUTS_TOKEN: ${{ secrets.TRAVELPAYOUTS_TOKEN }}
+          SERPAPI_KEY: ${{ secrets.SERPAPI_KEY }}
+          SMTP_HOST: ${{ secrets.SMTP_HOST }}
+          SMTP_PORT: ${{ secrets.SMTP_PORT }}
+          SMTP_USER: ${{ secrets.SMTP_USER }}
+          SMTP_PASSWORD: ${{ secrets.SMTP_PASSWORD }}
+          MAIL_FROM: ${{ secrets.MAIL_FROM }}
+          MAIL_TO: ${{ secrets.MAIL_TO }}
+        run: |
+          CONFIG=config.toml
+          [ -f "$CONFIG" ] || CONFIG=config.example.toml
+          ARGS="--config $CONFIG"
+          if [ "${{ inputs.dry_run }}" = "true" ]; then ARGS="$ARGS --dry-run"; fi
+          python -m price_agent $ARGS
+
+      - name: Save price history
+        if: always()
+        uses: actions/cache/save@v4
+        with:
+          path: flight-price-agent/data
+          key: price-history-${{ github.run_id }}
+
+      - name: Upload report
+        if: always() && inputs.dry_run
+        uses: actions/upload-artifact@v4
+        with:
+          name: flight-price-report
+          path: flight-price-agent/report.html
+          if-no-files-found: ignore
+
+  test:
+    runs-on: ubuntu-latest
+    if: github.event_name == 'workflow_dispatch'
+    defaults:
+      run:
+        working-directory: flight-price-agent
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: python -m unittest discover -s tests -t . -v
