@@ -16,7 +16,7 @@ un **reporte por mail** y un **resumen por WhatsApp** con:
 
 La configuración actual (`config.toml`) busca **Argentina → playas de Brasil**:
 salida el 2, 3 o 4 de enero de 2027 y vuelta entre 12 y 14 noches después, desde
-EZE, AEP, COR, ROS y MDZ hacia 15 aeropuertos de playa (Florianópolis, Camboriú,
+Buenos Aires (Ezeiza y Aeroparque) hacia 15 aeropuertos de playa (Florianópolis, Camboriú,
 Río, Búzios, Salvador, Maceió, Recife, Natal, Fortaleza, Jericoacoara, etc.).
 
 Usa sólo la librería estándar de Python (3.11 o más nueva), sin dependencias.
@@ -59,7 +59,7 @@ python -m price_agent
 | Proveedor | Costo | Datos | Requests por corrida |
 |---|---|---|---|
 | **Travelpayouts** (Aviasales) | Gratis, [token acá](https://www.travelpayouts.com/) | Cacheados (búsquedas de las últimas 48 h); puede haber días sin precio | 1 por ruta y mes |
-| **SerpApi** (Google Flights) | Plan gratis limitado, después pago, [key acá](https://serpapi.com/) | Tiempo real | 1 por ruta, fecha y estadía (75 rutas × 3 fechas × 3 estadías = 675) |
+| **SerpApi** (Google Flights) | Plan gratis limitado, después pago, [key acá](https://serpapi.com/) | Tiempo real | 1 por ruta, fecha y estadía (30 rutas × 3 fechas × 3 estadías = 270) |
 | **Demo** | – | Ficticios | 0 |
 
 Con SerpApi conviene acotar orígenes, destinos o fechas para no agotar la cuota.
