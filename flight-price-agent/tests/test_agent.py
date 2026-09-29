@@ -1,5 +1,5 @@
 import unittest
-from datetime import date, timedelta
+from datetime import date, datetime, timedelta
 from pathlib import Path
 from unittest import mock
 
@@ -12,6 +12,9 @@ from price_agent.providers.base import PriceProvider, ProviderError, cheapest_pe
 from price_agent.providers.demo import DemoProvider
 from price_agent.providers.travelpayouts import TravelpayoutsProvider
 from price_agent.report import build_subject, render_html, render_text
+from price_agent.whatsapp import (
+    WhatsAppError, WhatsAppSettings, build_whatsapp_text, send_whatsapp,
+)
 
 ROOT = Path(__file__).resolve().parents[1]
 TODAY = date(2026, 9, 29)
@@ -183,6 +186,59 @@ class ProviderTests(unittest.TestCase):
         self.assertEqual(len(quotes), 1)
         self.assertEqual((quotes[0].price, quotes[0].airline, quotes[0].stops), (480, "AR", 0))
         self.assertTrue(quotes[0].link.startswith("https://www.aviasales.com/search/"))
+
+
+class TwiceADayTests(unittest.TestCase):
+    def test_second_run_same_day_compares_with_midnight_run(self):
+        cfg = example_config()
+        hist = History(":memory:")
+        midnight = datetime(2026, 9, 29, 0, 0)
+        run_checks(cfg, FixedProvider(cfg, lambda r, d: 500), hist, TODAY, run_at=midnight)
+        reports = run_checks(cfg, FixedProvider(cfg, lambda r, d: 450), hist, TODAY,
+                             run_at=midnight.replace(hour=10))
+        r = reports[0]
+        self.assertAlmostEqual(r.change_pct(r.result.quotes[0]), -10.0)
+        self.assertEqual(r.previous_cheapest, 500)
+
+
+class WhatsAppTests(unittest.TestCase):
+    def _reports(self):
+        cfg = example_config()
+        cfg.fixed_dates = [date(2027, 1, 2)]
+        cfg.stay_nights_min, cfg.stay_nights_max = 12, 14
+        return run_checks(cfg, DemoProvider(cfg, seed="w"), History(":memory:"), TODAY)
+
+    def test_text(self):
+        text = build_whatsapp_text(self._reports(), TODAY)
+        self.assertIn("*Vuelos 29/09/2026*", text)
+        self.assertIn("1. ", text)
+        self.assertIn("(12n)", text + build_whatsapp_text(self._reports(), TODAY, top=50))
+        self.assertLessEqual(len(text), 1500)
+
+    def test_settings_normalize_phone(self):
+        env = {"WHATSAPP_PHONE": "+54 9 11 1234-5678", "CALLMEBOT_APIKEY": "k"}
+        with mock.patch.dict("os.environ", env, clear=True):
+            s = WhatsAppSettings.from_env()
+        self.assertEqual((s.provider, s.phone), ("callmebot", "+5491112345678"))
+        with mock.patch.dict("os.environ", {}, clear=True):
+            self.assertIsNone(WhatsAppSettings.from_env())
+        with mock.patch.dict("os.environ", {"WHATSAPP_PHONE": "+541"}, clear=True):
+            with self.assertRaises(WhatsAppError):
+                WhatsAppSettings.from_env()
+
+    def test_callmebot_request(self):
+        s = WhatsAppSettings("callmebot", "+5491112345678", apikey="k")
+        resp = mock.MagicMock()
+        resp.__enter__.return_value.read.return_value = b"Message queued. You will receive it in a few seconds."
+        with mock.patch("urllib.request.urlopen", return_value=resp) as uo:
+            send_whatsapp(s, "hola ✈️")
+        url = uo.call_args[0][0]
+        self.assertIn("phone=%2B5491112345678", url)
+        self.assertIn("apikey=k", url)
+        resp.__enter__.return_value.read.return_value = b"<p>APIKey is invalid. Error</p>"
+        with mock.patch("urllib.request.urlopen", return_value=resp):
+            with self.assertRaises(WhatsAppError):
+                send_whatsapp(s, "hola")
 
 
 class MailTests(unittest.TestCase):

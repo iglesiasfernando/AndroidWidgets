@@ -1,13 +1,13 @@
 # Agente de precios de vuelos ✈️
 
-Revisa **todos los días** los precios de vuelos entre un conjunto de aeropuertos
+Revisa **dos veces por día** (00:00 y 10:00, hora de Argentina) los precios de vuelos entre un conjunto de aeropuertos
 definidos, busca el precio más barato para **cada fecha de salida** (una ventana de
 días o fechas puntuales, sólo ida o ida y vuelta con un rango de noches) y te manda
-un **reporte por mail** con:
+un **reporte por mail** y un **resumen por WhatsApp** con:
 
 - El ranking de los viajes más baratos entre todas las rutas.
 - El mejor precio por destino.
-- Un resumen por ruta: precio mínimo, fechas y variación contra el día anterior.
+- Un resumen por ruta: precio mínimo, fechas y variación contra la corrida anterior.
 - Alertas 🔔 cuando hay fechas por debajo del umbral de precio que definas.
 - Una marca de **mínimo histórico** cuando el precio es el más bajo registrado.
 - Las N fechas más baratas de cada ruta, con aerolínea, escalas y link.
@@ -30,11 +30,12 @@ cp config.example.toml config.toml   # editá aeropuertos, fechas y umbrales
 # Probar sin API ni mail (precios ficticios, guarda report.html)
 python -m price_agent --provider demo --dry-run
 
-# Corrida real con envío de mail
+# Corrida real con envío de mail y/o WhatsApp
 export TRAVELPAYOUTS_TOKEN=...        # o SERPAPI_KEY si usás serpapi
 export SMTP_HOST=smtp.gmail.com SMTP_PORT=587
 export SMTP_USER=tu_cuenta@gmail.com SMTP_PASSWORD=tu_app_password
 export MAIL_TO=tu_cuenta@gmail.com    # varios destinatarios separados por coma
+export WHATSAPP_PHONE=+5491112345678 CALLMEBOT_APIKEY=...   # opcional
 python -m price_agent
 ```
 
@@ -69,18 +70,43 @@ aparecer "sin precio".
 ## Ejecución diaria automática (GitHub Actions)
 
 El workflow `.github/workflows/flight-price-agent.yml` corre todos los días a las
-08:00 (hora de Argentina) y guarda el histórico entre corridas con el cache de Actions.
+**00:00 y 10:00** (hora de Argentina) y guarda el histórico entre corridas con el cache
+de Actions. Cada corrida se compara con la anterior.
 
 1. Cargá estos *secrets* en **Settings → Secrets and variables → Actions**:
    - `TRAVELPAYOUTS_TOKEN` (o `SERPAPI_KEY`)
-   - `SMTP_HOST`, `SMTP_PORT`, `SMTP_USER`, `SMTP_PASSWORD`, `MAIL_TO` y opcionalmente `MAIL_FROM`
+   - Mail: `SMTP_HOST`, `SMTP_PORT`, `SMTP_USER`, `SMTP_PASSWORD`, `MAIL_TO` y opcionalmente `MAIL_FROM`
+   - WhatsApp (opcional, ver abajo): `WHATSAPP_PHONE` y `CALLMEBOT_APIKEY`
 2. Creá y commiteá `flight-price-agent/config.toml` con tus aeropuertos. Si no existe,
    se usa `config.example.toml`.
 3. Los cron de GitHub sólo corren en la **rama por defecto**: mergeá esta rama a `master`.
 4. Para probar a mano: **Actions → Flight price agent → Run workflow**. Con `dry_run`
    no manda mail y deja el reporte como artefacto descargable.
 
-Para cambiar el horario, editá la línea `cron` (está en UTC).
+Para cambiar el horario, editá las líneas `cron` (están en UTC: Argentina = UTC−3).
+
+## WhatsApp
+
+El resumen (los 5 viajes más baratos y las alertas) se manda por WhatsApp si está
+definido `WHATSAPP_PHONE`. Mail y WhatsApp son independientes: podés usar uno o ambos.
+
+### Opción gratuita: CallMeBot (recomendada para uso personal)
+
+1. Agendá el número de CallMeBot en tu teléfono. El número vigente está en
+   https://www.callmebot.com/blog/free-api-whatsapp-messages/ porque a veces cambia.
+2. Desde tu WhatsApp mandale el mensaje: `I allow callmebot to send me messages`
+3. Te responde con tu **API key**.
+4. Cargá los secrets:
+   - `WHATSAPP_PHONE`: tu número en formato internacional **con el 9** de celulares
+     argentinos, por ejemplo `+5491112345678`.
+   - `CALLMEBOT_APIKEY`: la key que te llegó.
+
+CallMeBot sólo puede mandar mensajes al número que lo activó.
+
+### Opción paga: Twilio
+
+Cargá `WHATSAPP_PROVIDER=twilio`, `WHATSAPP_PHONE`, `TWILIO_ACCOUNT_SID`,
+`TWILIO_AUTH_TOKEN` y `TWILIO_WHATSAPP_FROM` (el número de WhatsApp de Twilio o el del sandbox).
 
 ### Gmail
 

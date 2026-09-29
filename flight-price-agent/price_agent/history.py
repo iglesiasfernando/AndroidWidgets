@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import sqlite3
-from datetime import date
+from datetime import date, datetime
 from pathlib import Path
 from typing import Optional
 
@@ -12,7 +12,7 @@ TripKey = tuple[date, Optional[date]]
 # return_date = '' para vuelos sólo ida (NULL rompería la clave primaria).
 SCHEMA = """
 CREATE TABLE IF NOT EXISTS quotes (
-    run_date    TEXT NOT NULL,
+    run_at      TEXT NOT NULL,  -- fecha y hora de la corrida (ISO)
     route       TEXT NOT NULL,
     departure   TEXT NOT NULL,
     return_date TEXT NOT NULL DEFAULT '',
@@ -20,7 +20,7 @@ CREATE TABLE IF NOT EXISTS quotes (
     currency    TEXT NOT NULL,
     airline     TEXT,
     stops       INTEGER,
-    PRIMARY KEY (run_date, route, departure, return_date)
+    PRIMARY KEY (run_at, route, departure, return_date)
 );
 """
 
@@ -33,12 +33,12 @@ class History:
         self.conn = sqlite3.connect(str(path))
         self.conn.executescript(SCHEMA)
 
-    def save(self, run_date: date, quotes: list[Quote]) -> None:
+    def save(self, run_at: datetime, quotes: list[Quote]) -> None:
         self.conn.executemany(
             "INSERT OR REPLACE INTO quotes VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
             [
                 (
-                    run_date.isoformat(),
+                    run_at.isoformat(timespec="seconds"),
                     q.route.key,
                     q.departure.isoformat(),
                     q.return_date.isoformat() if q.return_date else "",
@@ -52,17 +52,17 @@ class History:
         )
         self.conn.commit()
 
-    def previous(self, route: Route, before: date, currency: str) -> dict[TripKey, float]:
-        """Precios por viaje (ida, vuelta) del último run anterior a `before`."""
+    def previous(self, route: Route, before: datetime, currency: str) -> dict[TripKey, float]:
+        """Precios por viaje (ida, vuelta) de la última corrida anterior a `before`."""
         row = self.conn.execute(
-            "SELECT MAX(run_date) FROM quotes WHERE route = ? AND run_date < ? AND currency = ?",
-            (route.key, before.isoformat(), currency),
+            "SELECT MAX(run_at) FROM quotes WHERE route = ? AND run_at < ? AND currency = ?",
+            (route.key, before.isoformat(timespec="seconds"), currency),
         ).fetchone()
         if not row or not row[0]:
             return {}
         rows = self.conn.execute(
             "SELECT departure, return_date, price FROM quotes"
-            " WHERE route = ? AND run_date = ? AND currency = ?",
+            " WHERE route = ? AND run_at = ? AND currency = ?",
             (route.key, row[0], currency),
         ).fetchall()
         return {

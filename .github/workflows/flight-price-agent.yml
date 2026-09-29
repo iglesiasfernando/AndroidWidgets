@@ -2,12 +2,14 @@ name: Flight price agent
 
 on:
   schedule:
-    # Todos los días a las 11:00 UTC (08:00 hora de Argentina)
-    - cron: "0 11 * * *"
+    # Hora de Argentina (UTC-3): 00:00 y 10:00. Los cron de GitHub van en UTC
+    # y pueden demorarse algunos minutos en horarios de mucha carga.
+    - cron: "0 3 * * *"   # 00:00 ART
+    - cron: "0 13 * * *"  # 10:00 ART
   workflow_dispatch:
     inputs:
       dry_run:
-        description: "No enviar mail (sólo generar el reporte como artefacto)"
+        description: "No enviar mail ni WhatsApp (sólo generar el reporte como artefacto)"
         type: boolean
         default: false
 
@@ -37,6 +39,7 @@ jobs:
 
       - name: Run agent
         env:
+          TZ: America/Argentina/Buenos_Aires
           TRAVELPAYOUTS_TOKEN: ${{ secrets.TRAVELPAYOUTS_TOKEN }}
           SERPAPI_KEY: ${{ secrets.SERPAPI_KEY }}
           SMTP_HOST: ${{ secrets.SMTP_HOST }}
@@ -45,6 +48,12 @@ jobs:
           SMTP_PASSWORD: ${{ secrets.SMTP_PASSWORD }}
           MAIL_FROM: ${{ secrets.MAIL_FROM }}
           MAIL_TO: ${{ secrets.MAIL_TO }}
+          WHATSAPP_PHONE: ${{ secrets.WHATSAPP_PHONE }}
+          WHATSAPP_PROVIDER: ${{ secrets.WHATSAPP_PROVIDER }}
+          CALLMEBOT_APIKEY: ${{ secrets.CALLMEBOT_APIKEY }}
+          TWILIO_ACCOUNT_SID: ${{ secrets.TWILIO_ACCOUNT_SID }}
+          TWILIO_AUTH_TOKEN: ${{ secrets.TWILIO_AUTH_TOKEN }}
+          TWILIO_WHATSAPP_FROM: ${{ secrets.TWILIO_WHATSAPP_FROM }}
         run: |
           CONFIG=config.toml
           [ -f "$CONFIG" ] || CONFIG=config.example.toml

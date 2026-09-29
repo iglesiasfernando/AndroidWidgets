@@ -384,11 +384,11 @@ def render_html(reports: list[RouteReport], run_date: date, config: Config) -> s
 <table style="border-collapse:collapse;font-size:13px;width:100%">
 <tr style="background:#f6f8fa;text-align:left">
 <th style="{TD}">Ruta</th><th style="{TD};text-align:right">Mínimo</th>
-<th style="{TD}">Viaje</th><th style="{TD}">vs. ayer</th><th style="{TD}"></th></tr>
+<th style="{TD}">Viaje</th><th style="{TD}">vs. anterior</th><th style="{TD}"></th></tr>
 {''.join(summary_rows)}
 </table>
 {no_price_html}
 {''.join(sections)}
 <p style="color:{MUTED};font-size:11px;margin-top:32px">Los precios son el valor más bajo encontrado para cada combinación de
-fechas y pueden cambiar. "vs. ayer" compara contra el mismo viaje en la corrida anterior.</p>
+fechas y pueden cambiar. "vs. anterior" compara contra el mismo viaje en la corrida anterior.</p>
 </body></html>"""
