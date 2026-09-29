@@ -15,7 +15,7 @@ from .history import History
 from .mailer import MailError, SmtpSettings, send_mail
 from .providers import ProviderError, build_provider
 from .report import build_subject, render_html, render_text
-from .whatsapp import WhatsAppError, WhatsAppSettings, build_whatsapp_text, send_whatsapp
+from .whatsapp import WhatsAppError, WhatsAppSettings, build_whatsapp_messages, send_whatsapp
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -74,15 +74,16 @@ def main(argv: list[str] | None = None) -> int:
     subject = build_subject(reports, today)
     text = render_text(reports, today, config)
     html = render_html(reports, today, config)
-    wa_text = build_whatsapp_text(reports, today)
+    wa_messages = build_whatsapp_messages(reports, now, config)
 
     failed = False
     if args.dry_run:
         Path(args.output).write_text(html, encoding="utf-8")
         print(subject)
         print(text)
-        print("--- WhatsApp ---")
-        print(wa_text)
+        for i, msg in enumerate(wa_messages, 1):
+            print(f"--- WhatsApp {i}/{len(wa_messages)} ({len(msg)} caracteres) ---")
+            print(msg)
         log.info("Reporte guardado en %s", args.output)
     if smtp:
         try:
@@ -93,8 +94,8 @@ def main(argv: list[str] | None = None) -> int:
             failed = True
     if wa:
         try:
-            send_whatsapp(wa, wa_text)
-            log.info("WhatsApp enviado a %s", wa.phone)
+            send_whatsapp(wa, wa_messages)
+            log.info("WhatsApp enviado a %s (%d mensajes)", wa.phone, len(wa_messages))
         except WhatsAppError as e:
             log.error("%s", e)
             failed = True

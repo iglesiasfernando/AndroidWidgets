@@ -13,7 +13,7 @@ from price_agent.providers.demo import DemoProvider
 from price_agent.providers.travelpayouts import TravelpayoutsProvider
 from price_agent.report import build_subject, render_html, render_text
 from price_agent.whatsapp import (
-    WhatsAppError, WhatsAppSettings, build_whatsapp_text, send_whatsapp,
+    WhatsAppError, WhatsAppSettings, build_whatsapp_messages, build_whatsapp_text, send_whatsapp,
 )
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -210,10 +210,38 @@ class WhatsAppTests(unittest.TestCase):
 
     def test_text(self):
         text = build_whatsapp_text(self._reports(), TODAY)
-        self.assertIn("*Vuelos 29/09/2026*", text)
-        self.assertIn("1. ", text)
-        self.assertIn("(12n)", text + build_whatsapp_text(self._reports(), TODAY, top=50))
-        self.assertLessEqual(len(text), 1500)
+        self.assertIn("*Vuelos a Brasil · 29/09 00:00*", text)
+        self.assertIn("🏆 *Top", text)
+        self.assertIn("📍 *Mejor precio por destino*", text)
+        self.assertIn("(12n)", text)
+
+    def test_full_report_split_in_messages(self):
+        cfg = load_config(ROOT / "config.toml")
+        cfg.history_db = ":memory:"
+        hist = History(":memory:")
+        run_checks(cfg, DemoProvider(cfg, seed="a"), hist, TODAY, run_at=datetime(2026, 9, 29, 0))
+        now = datetime(2026, 9, 29, 10)
+        reports = run_checks(cfg, DemoProvider(cfg, seed="b"), hist, TODAY, run_at=now)
+        reports[-1].result.quotes = []  # un destino sin vuelos
+        msgs = build_whatsapp_messages(reports, now, cfg)
+        text = "\n".join(msgs)
+        self.assertGreater(len(msgs), 1)
+        self.assertTrue(all(len(m) <= 1000 for m in msgs))
+        self.assertIn("Ida 2, 3 o 4 de enero · vuelta a las 12–14 noches", text)
+        self.assertIn("10. ", text)
+        self.assertIn("• Florianópolis:", text)
+        self.assertIn("❌ *Sin vuelos encontrados:* Jericoacoara", text)
+        self.assertRegex(text, "[🔻🔺]\\d+%")  # variación contra la corrida anterior
+
+    def test_send_multiple_messages(self):
+        s = WhatsAppSettings("callmebot", "+5491112345678", apikey="k")
+        resp = mock.MagicMock()
+        resp.__enter__.return_value.read.return_value = b"Message queued."
+        with mock.patch("urllib.request.urlopen", return_value=resp) as uo, \
+                mock.patch("price_agent.whatsapp.time.sleep") as sl:
+            send_whatsapp(s, ["uno", "dos", "tres"])
+        self.assertEqual(uo.call_count, 3)
+        self.assertEqual(sl.call_count, 2)
 
     def test_settings_normalize_phone(self):
         env = {"WHATSAPP_PHONE": "+54 9 11 1234-5678", "CALLMEBOT_APIKEY": "k"}
