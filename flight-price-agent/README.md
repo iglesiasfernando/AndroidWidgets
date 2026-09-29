@@ -98,8 +98,10 @@ Para cambiar el horario, editá las líneas `cron` (están en UTC: Argentina = U
 
 ## WhatsApp
 
-El resumen (los 5 viajes más baratos y las alertas) se manda por WhatsApp si está
-definido `WHATSAPP_PHONE`. Mail y WhatsApp son independientes: podés usar uno o ambos.
+El reporte se manda por WhatsApp si está definido `WHATSAPP_PHONE`: top 10 de viajes
+(con aerolínea, escalas y aeropuerto de salida), mejor precio por destino, variación
+contra la corrida anterior, alertas, mínimos históricos y destinos sin vuelos. Si es
+largo se divide en varios mensajes. Mail y WhatsApp son independientes: podés usar uno o ambos.
 
 ### Opción gratuita: CallMeBot (recomendada para uso personal)
 
